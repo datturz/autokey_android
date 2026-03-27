@@ -1,0 +1,76 @@
+name: Build Android APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Rename APK
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk L2M_AutoKey.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: L2M_AutoKey_Android
+          path: L2M_AutoKey.apk
+
+  release:
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: L2M_AutoKey_Android
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/L2M_AutoKey.apk
+          body: |
+            ## L2M AutoKey Android ${{ github.ref_name }}
+
+            ### Download
+            - `L2M_AutoKey.apk` — Install on Android device
+
+            ### Setup
+            1. Install APK (allow unknown sources)
+            2. Open app → Enable Accessibility Service
+            3. Grant Screen Capture permission
+            4. Configure settings → Start
+
+            ### Features
+            - Radar Detection (❗ warning)
+            - Combat Escape (HP threshold)
+            - Auto Teleport
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
