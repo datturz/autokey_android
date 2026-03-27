@@ -52,8 +52,8 @@ class MainActivity : AppCompatActivity() {
         // Load saved settings
         loadSettings()
 
-        btnStart.setOnClickListener { onStart() }
-        btnStop.setOnClickListener { onStop() }
+        btnStart.setOnClickListener { onStartBot() }
+        btnStop.setOnClickListener { onStopBot() }
         findViewById<Button>(R.id.btnAccessibility).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
@@ -65,7 +65,8 @@ class MainActivity : AppCompatActivity() {
         updateBotStatus()
     }
 
-    private fun onStart() {
+    private fun onStartBot() {
+        // renamed from onStart to avoid conflict with Activity.onStart()
         // Check accessibility
         if (AutoKeyAccessibilityService.instance == null) {
             Toast.makeText(this, "Enable Accessibility Service first!", Toast.LENGTH_LONG).show()
@@ -99,7 +100,7 @@ class MainActivity : AppCompatActivity() {
         btnStop.isEnabled = true
     }
 
-    private fun onStop() {
+    private fun onStopBot() {
         stopService(Intent(this, BotService::class.java))
         tvStatus.text = "Status: Stopped"
         btnStart.isEnabled = true
