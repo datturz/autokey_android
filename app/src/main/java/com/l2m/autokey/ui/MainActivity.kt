@@ -37,14 +37,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Force setup if accessibility not enabled
-        if (AutoKeyAccessibilityService.instance == null) {
-            startActivity(Intent(this, SetupActivity::class.java))
-            finish()
-            return
-        }
-
         setContentView(R.layout.activity_main)
 
         tvStatus = findViewById(R.id.tvStatus)

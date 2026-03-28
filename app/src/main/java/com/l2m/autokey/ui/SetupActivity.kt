@@ -14,63 +14,67 @@ import android.view.accessibility.AccessibilityManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.l2m.autokey.service.AutoKeyAccessibilityService
 
 /**
- * Mandatory setup screen shown on first launch (or when accessibility is not enabled).
- * Blocks the user from proceeding until accessibility service is activated.
+ * Mandatory setup screen — LAUNCHER activity.
+ * If accessibility is already enabled, immediately goes to MainActivity.
+ * Otherwise blocks user until they enable it.
  */
 class SetupActivity : AppCompatActivity() {
 
-    private lateinit var tvStep: TextView
-    private lateinit var tvStatus: TextView
-    private lateinit var btnAction: Button
-    private lateinit var progressBar: ProgressBar
+    private var tvStep: TextView? = null
+    private var tvStatus: TextView? = null
+    private var btnAction: Button? = null
+    private var progressBar: ProgressBar? = null
+    private var waitLabel: TextView? = null
     private val handler = Handler(Looper.getMainLooper())
     private var checkRunnable: Runnable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // If already enabled, skip setup
+        // If already enabled, skip setup — go straight to main
         if (isAccessibilityEnabled()) {
-            markSetupComplete()
             goToMain()
             return
         }
 
-        // Build setup UI programmatically
+        buildSetupUI()
+    }
+
+    private fun buildSetupUI() {
+        val scroll = ScrollView(this)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(64, 120, 64, 64)
+            setPadding(64, 100, 64, 64)
         }
 
-        TextView(this).apply {
+        layout.addView(TextView(this).apply {
             text = "L2M AutoKey"
             textSize = 28f
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 16)
-            layout.addView(this)
-        }
+        })
 
-        TextView(this).apply {
+        layout.addView(TextView(this).apply {
             text = "Initial Setup"
             textSize = 20f
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 48)
-            layout.addView(this)
-        }
+        })
 
         tvStep = TextView(this).apply {
             text = "Step 1: Enable Accessibility Service"
             textSize = 16f
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 16)
-            layout.addView(this)
         }
+        layout.addView(tvStep)
 
         tvStatus = TextView(this).apply {
             text = "Accessibility Service harus diaktifkan agar app dapat mengirim input ke game.\n\n" +
@@ -81,39 +85,41 @@ class SetupActivity : AppCompatActivity() {
             textSize = 14f
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 32)
-            layout.addView(this)
         }
+        layout.addView(tvStatus)
 
         btnAction = Button(this).apply {
             text = "Buka Accessibility Settings"
             setOnClickListener { openAccessibilitySettings() }
-            layout.addView(this)
         }
+        layout.addView(btnAction)
 
         progressBar = ProgressBar(this).apply {
             visibility = View.GONE
             setPadding(0, 24, 0, 0)
-            layout.addView(this)
         }
+        layout.addView(progressBar)
 
-        TextView(this).apply {
+        waitLabel = TextView(this).apply {
             text = "Menunggu aktivasi..."
-            id = View.generateViewId()
             visibility = View.GONE
             textSize = 12f
             gravity = Gravity.CENTER
             setPadding(0, 8, 0, 0)
-            tag = "waitLabel"
-            layout.addView(this)
         }
+        layout.addView(waitLabel)
 
-        setContentView(layout)
+        scroll.addView(layout)
+        setContentView(scroll)
     }
 
     override fun onResume() {
         super.onResume()
-        // Start polling for accessibility status
-        startCheckingAccessibility()
+        if (isAccessibilityEnabled()) {
+            onAccessibilityEnabled()
+        } else {
+            startCheckingAccessibility()
+        }
     }
 
     override fun onPause() {
@@ -123,74 +129,60 @@ class SetupActivity : AppCompatActivity() {
 
     private fun openAccessibilitySettings() {
         try {
-            // Try to open accessibility settings directly
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            startActivity(intent)
-
-            // Show waiting indicator
-            progressBar.visibility = View.VISIBLE
-            val waitLabel = findViewWithTag<TextView>("waitLabel")
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            progressBar?.visibility = View.VISIBLE
             waitLabel?.visibility = View.VISIBLE
         } catch (e: Exception) {
-            // Fallback to general settings
             startActivity(Intent(Settings.ACTION_SETTINGS))
         }
     }
 
-    private fun <T : View> findViewWithTag(tag: String): T? {
-        return window.decorView.findViewWithTag(tag)
-    }
-
     private fun isAccessibilityEnabled(): Boolean {
         // Check via AccessibilityManager
-        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-        val enabledServices = am.getEnabledAccessibilityServiceList(
-            AccessibilityServiceInfo.FEEDBACK_ALL_MASK
-        )
-        val myComponent = ComponentName(this, AutoKeyAccessibilityService::class.java)
-        for (info in enabledServices) {
-            val comp = ComponentName.unflattenFromString(info.id)
-            if (comp == myComponent) return true
-        }
+        try {
+            val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+            val enabledServices = am.getEnabledAccessibilityServiceList(
+                AccessibilityServiceInfo.FEEDBACK_ALL_MASK
+            )
+            val myComponent = ComponentName(this, AutoKeyAccessibilityService::class.java)
+            for (info in enabledServices) {
+                val comp = ComponentName.unflattenFromString(info.id)
+                if (comp == myComponent) return true
+            }
+        } catch (_: Exception) {}
 
         // Also check singleton
         return AutoKeyAccessibilityService.instance != null
     }
 
     private fun startCheckingAccessibility() {
+        stopCheckingAccessibility()
         checkRunnable = object : Runnable {
             override fun run() {
                 if (isAccessibilityEnabled()) {
                     onAccessibilityEnabled()
                 } else {
-                    handler.postDelayed(this, 500) // Check every 500ms
+                    handler.postDelayed(this, 500)
                 }
             }
         }
-        handler.post(checkRunnable!!)
+        handler.postDelayed(checkRunnable!!, 500)
     }
 
     private fun stopCheckingAccessibility() {
         checkRunnable?.let { handler.removeCallbacks(it) }
+        checkRunnable = null
     }
 
     private fun onAccessibilityEnabled() {
-        tvStep.text = "✅ Accessibility Service Aktif!"
-        tvStatus.text = "Setup selesai. Memulai aplikasi..."
-        btnAction.visibility = View.GONE
-        progressBar.visibility = View.GONE
+        stopCheckingAccessibility()
+        tvStep?.text = "✅ Accessibility Service Aktif!"
+        tvStatus?.text = "Setup selesai. Memulai aplikasi..."
+        btnAction?.visibility = View.GONE
+        progressBar?.visibility = View.GONE
+        waitLabel?.visibility = View.GONE
 
-        markSetupComplete()
-
-        // Delay then go to main
         handler.postDelayed({ goToMain() }, 1000)
-    }
-
-    private fun markSetupComplete() {
-        getSharedPreferences("l2m_autokey", Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean("setup_complete", true)
-            .apply()
     }
 
     private fun goToMain() {

@@ -13,8 +13,9 @@
         android:label="L2M AutoKey"
         android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar">
 
+        <!-- Setup wizard is the LAUNCHER — always checks accessibility first -->
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".ui.SetupActivity"
             android:exported="true"
             android:launchMode="singleTop">
             <intent-filter>
@@ -23,11 +24,10 @@
             </intent-filter>
         </activity>
 
-        <!-- Setup wizard — forces accessibility permission -->
         <activity
-            android:name=".ui.SetupActivity"
+            android:name=".ui.MainActivity"
             android:exported="false"
-            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
+            android:launchMode="singleTop" />
 
         <!-- Accessibility Service for input injection -->
         <service
