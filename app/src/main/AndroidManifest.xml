@@ -23,6 +23,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Setup wizard — forces accessibility permission -->
+        <activity
+            android:name=".ui.SetupActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
+
         <!-- Accessibility Service for input injection -->
         <service
             android:name=".service.AutoKeyAccessibilityService"
